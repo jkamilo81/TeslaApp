@@ -6,7 +6,7 @@ import { formatCOP } from '@/lib/format'
 interface Payer {
   id: string
   name: string
-  is_default: boolean
+  is_default: boolean | null
 }
 
 interface PaymentSplitProps {
