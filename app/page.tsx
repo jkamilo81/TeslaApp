@@ -56,7 +56,9 @@ export default function Dashboard() {
       }
 
       try {
-        const { data: petsData } = await supabase.from('pets').select('id, name, type').order('name')
+        const { data: petsData, error: petsError } = await supabase.from('pets').select('id, name, type').order('name')
+        if (petsError) console.error('Pets query error:', petsError)
+        console.log('Pets loaded:', petsData?.length, 'items')
         setPets(petsData ?? [])
       } catch (err) {
         console.error('Error loading pets:', err)
