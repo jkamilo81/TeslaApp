@@ -45,6 +45,12 @@ export async function POST() {
     .single()
 
   if (existing) {
+    // Family exists — but still ensure orphaned pets are assigned
+    await serviceClient
+      .from('pets')
+      .update({ family_id: existing.family_id })
+      .is('family_id', null)
+
     return NextResponse.json({ family_id: existing.family_id, created: false })
   }
 
@@ -88,4 +94,10 @@ export async function POST() {
     .is('family_id', null)
 
   return NextResponse.json({ family_id: newFamily.id, created: true })
+}
+
+
+// GET handler for easy browser testing — same logic as POST
+export async function GET() {
+  return POST()
 }
