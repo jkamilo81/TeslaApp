@@ -18,7 +18,6 @@ interface PaymentSplitProps {
 export default function PaymentSplit({ totalCost, distributions, onChange }: PaymentSplitProps) {
   const [payers, setPayers] = useState<Payer[]>([])
   const [loading, setLoading] = useState(true)
-  const [initialized, setInitialized] = useState(false)
 
   useEffect(() => {
     async function fetchPayers() {
@@ -36,27 +35,16 @@ export default function PaymentSplit({ totalCost, distributions, onChange }: Pay
 
   // Assign 100% to default payer when payers load and no distributions exist yet
   useEffect(() => {
-    if (payers.length === 0 || initialized) return
+    if (payers.length === 0) return
 
     if (distributions.length === 0) {
       const defaultPayer = payers.find(p => p.is_default) || payers[0]
       onChange([{ payer_id: defaultPayer.id, amount: totalCost }])
+    } else if (distributions.length === 1 && distributions[0].amount !== totalCost) {
+      // Keep single distribution in sync with totalCost
+      onChange([{ payer_id: distributions[0].payer_id, amount: totalCost }])
     }
-    setInitialized(true)
-  }, [payers, initialized, distributions.length, totalCost, onChange])
-
-  // Update default payer amount when totalCost changes and only one payer has the full amount
-  useEffect(() => {
-    if (!initialized || distributions.length === 0) return
-
-    // If there's exactly one distribution and it was the full previous amount, update it
-    if (distributions.length === 1) {
-      const current = distributions[0]
-      if (current.amount !== totalCost) {
-        onChange([{ payer_id: current.payer_id, amount: totalCost }])
-      }
-    }
-  }, [totalCost, initialized, distributions, onChange])
+  }, [payers, totalCost]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleAmountChange(payerId: string, value: string) {
     const num = value === '' ? 0 : Number(value)
