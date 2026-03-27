@@ -24,6 +24,8 @@ export default function LoginPage() {
         setLoading(false)
         return
       }
+      // Ensure family is set up for this user
+      await fetch('/api/family/setup', { method: 'POST' })
       router.push('/')
       router.refresh()
     } else {
