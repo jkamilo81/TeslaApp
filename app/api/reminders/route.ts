@@ -2,17 +2,22 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import webpush from 'web-push'
 
-// Service role client — bypasses RLS for cron job access to notification_log
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+export const dynamic = 'force-dynamic'
 
-webpush.setVapidDetails(
-  'mailto:admin@pettracker.app',
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-)
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
+
+function initVapid() {
+  webpush.setVapidDetails(
+    'mailto:admin@pettracker.app',
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+    process.env.VAPID_PRIVATE_KEY!
+  )
+}
 
 function formatDateES(dateStr: string): string {
   const date = new Date(dateStr + 'T00:00:00')
@@ -30,6 +35,8 @@ function getDateOnly(date: Date): string {
 
 // Called by Vercel Cron daily at 8am
 export async function GET() {
+  initVapid()
+  const supabase = getSupabase()
   const today = new Date()
   const todayStr = getDateOnly(today)
 
