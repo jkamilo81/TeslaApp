@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import webpush from 'web-push'
 import { createClient } from '@supabase/supabase-js'
 
-webpush.setVapidDetails(
-  'mailto:admin@pettracker.app',
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-)
+function getWebPush() {
+  webpush.setVapidDetails(
+    'mailto:admin@pettracker.app',
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
+    process.env.VAPID_PRIVATE_KEY!
+  )
+  return webpush
+}
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,6 +17,7 @@ const supabase = createClient(
 )
 
 export async function POST(req: NextRequest) {
+  const wp = getWebPush()
   // Only allow calls from the cron job with the secret
   const cronSecret = req.headers.get('x-cron-secret')
   if (process.env.CRON_SECRET && cronSecret !== process.env.CRON_SECRET) {
@@ -26,7 +30,7 @@ export async function POST(req: NextRequest) {
 
   const results = await Promise.allSettled(
     subs.map((sub) =>
-      webpush.sendNotification(
+      wp.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
         JSON.stringify({ title, body, url })
       )
