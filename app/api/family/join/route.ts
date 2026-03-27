@@ -85,5 +85,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
   }
 
+  // Create a payer entry for the new member
+  const userName = user.user_metadata?.full_name
+    || user.user_metadata?.name
+    || user.email?.split('@')[0]
+    || 'Usuario'
+
+  await serviceClient
+    .from('payers')
+    .insert({ name: userName, family_id: invitation.family_id, user_id: user.id, is_default: false })
+
   return NextResponse.json({ ok: true })
 }

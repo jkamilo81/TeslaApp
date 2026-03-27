@@ -4,8 +4,8 @@ import { usePathname } from 'next/navigation'
 
 const NAV_ITEMS = [
   { href: '/', icon: 'home', label: 'Inicio' },
-  { href: '/tesla', icon: 'monitor_heart', label: 'Tesla' },
-  { href: '/figo', icon: 'cruelty_free', label: 'Figo' },
+  { href: '/tesla', icon: 'pets', label: 'Tesla' },
+  { href: '/figo', icon: 'pets', label: 'Figo' },
   { href: '/gastos', icon: 'payments', label: 'Gastos' },
   { href: '/historial', icon: 'clinical_notes', label: 'Historial' },
   { href: '/familia', icon: 'group', label: 'Familia' },

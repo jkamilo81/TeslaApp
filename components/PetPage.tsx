@@ -44,6 +44,14 @@ export default function PetPage({ petId, petName, petType, insurance, vaccines, 
   const [distributions, setDistributions] = useState<{ payer_id: string; amount: number }[]>([])
   const [fileUrl, setFileUrl] = useState<string | null>(null)
 
+  // When cost changes and there's a single distribution, keep it in sync
+  function handleCostChange(newCost: number | null) {
+    setCostCop(newCost)
+    if (newCost != null && newCost > 0 && distributions.length === 1) {
+      setDistributions([{ payer_id: distributions[0].payer_id, amount: newCost }])
+    }
+  }
+
   const handleDistributionsChange = useCallback((d: { payer_id: string; amount: number }[]) => {
     setDistributions(d)
   }, [])
@@ -292,9 +300,9 @@ export default function PetPage({ petId, petName, petType, insurance, vaccines, 
 
             {/* Cost Input */}
             {activeSection === 'food_purchases' ? (
-              <CostInput value={costCop ?? 0} onChange={(v) => setCostCop(v ?? 0)} />
+              <CostInput value={costCop ?? 0} onChange={(v) => handleCostChange(v ?? 0)} />
             ) : (
-              <CostInput value={costCop} onChange={setCostCop} />
+              <CostInput value={costCop} onChange={handleCostChange} />
             )}
 
             {/* Payment Split — shown when cost > 0 */}

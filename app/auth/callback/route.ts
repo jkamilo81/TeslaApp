@@ -84,6 +84,22 @@ export async function GET(request: Request) {
               if (petsError) {
                 console.error('[auth/callback] Error assigning orphaned pets:', petsError)
               }
+
+              // Create default payer for this user
+              const userName = user.user_metadata?.full_name
+                || user.user_metadata?.name
+                || user.email?.split('@')[0]
+                || 'Usuario'
+
+              await serviceClient
+                .from('payers')
+                .insert({ name: userName, family_id: newFamily.id, user_id: user.id, is_default: true })
+
+              // Also migrate any orphaned payers
+              await serviceClient
+                .from('payers')
+                .update({ family_id: newFamily.id })
+                .is('family_id', null)
             }
           }
         } catch (err) {
