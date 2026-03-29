@@ -14,7 +14,7 @@ export default function Modal({ title, onClose, children }: { title: string; onC
             <span className="material-symbols-outlined text-sm">close</span>
           </button>
         </div>
-        <div className="px-5 pb-5">{children}</div>
+        <div className="px-5 pb-24 sm:pb-5">{children}</div>
       </div>
     </div>
   )
