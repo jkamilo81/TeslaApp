@@ -1,9 +1,20 @@
 'use client'
-import { ReactNode } from 'react'
+import { ReactNode, useEffect } from 'react'
 
 export default function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [onClose])
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-on-surface/30 p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-on-surface/30 p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
       <div className="bg-surface-container-lowest rounded-xl w-full max-w-md max-h-[90vh] overflow-y-auto ambient-shadow-lg">
         <div className="flex items-center justify-between p-5">
           <h2 className="font-headline text-lg font-bold text-on-surface">{title}</h2>

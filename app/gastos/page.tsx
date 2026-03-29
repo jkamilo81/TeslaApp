@@ -245,6 +245,7 @@ export default function GastosPage() {
             <input
               type="date"
               value={startDate}
+              max={endDate}
               onChange={(e) => setStartDate(e.target.value)}
               className="w-full bg-surface-container rounded-lg px-3 py-2.5 text-sm text-on-surface font-medium focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
@@ -254,6 +255,7 @@ export default function GastosPage() {
             <input
               type="date"
               value={endDate}
+              min={startDate}
               onChange={(e) => setEndDate(e.target.value)}
               className="w-full bg-surface-container rounded-lg px-3 py-2.5 text-sm text-on-surface font-medium focus:outline-none focus:ring-2 focus:ring-primary/30"
             />

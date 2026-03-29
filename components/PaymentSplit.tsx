@@ -18,14 +18,18 @@ interface PaymentSplitProps {
 export default function PaymentSplit({ totalCost, distributions, onChange }: PaymentSplitProps) {
   const [payers, setPayers] = useState<Payer[]>([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState(false)
 
   useEffect(() => {
     async function fetchPayers() {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('payers')
         .select('id, name, is_default')
         .order('is_default', { ascending: false })
-      if (data) {
+      if (error) {
+        console.error('Error fetching payers:', error)
+        setFetchError(true)
+      } else if (data) {
         setPayers(data)
       }
       setLoading(false)
@@ -81,6 +85,15 @@ export default function PaymentSplit({ totalCost, distributions, onChange }: Pay
         <div className="h-4 bg-surface-container-high rounded w-1/3" />
         <div className="h-10 bg-surface-container-high rounded" />
       </div>
+    )
+  }
+
+  if (fetchError || payers.length === 0) {
+    return (
+      <p className="text-error text-xs flex items-center gap-1">
+        <span className="material-symbols-outlined text-xs">error</span>
+        No se pudieron cargar los pagadores
+      </p>
     )
   }
 

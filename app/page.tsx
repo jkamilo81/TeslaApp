@@ -56,43 +56,47 @@ export default function Dashboard() {
       }
 
       try {
-        const { data: petsData, error: petsError } = await supabase.from('pets').select('id, name, type').order('name')
-        if (petsError) console.error('Pets query error:', petsError)
-        console.log('Pets loaded:', petsData?.length, 'items')
+        const { data: petsData } = await supabase.from('pets').select('id, name, type').order('name')
         setPets(petsData ?? [])
-      } catch (err) {
-        console.error('Error loading pets:', err)
+      } catch {
+        // Pets query failed — show empty state
       }
 
       try {
-        const [{ data: insurance }, { data: vaccines }, { data: parasites }, { data: certs }, { data: appts }] =
-          await Promise.all([
-            supabase.from('insurance').select('*, pets(name)').order('expiry_date'),
-            supabase.from('vaccines').select('*, pets(name)').order('next_due_date'),
-            supabase.from('parasite_control').select('*, pets(name)').order('next_due_date'),
-            supabase.from('service_certificates').select('*, pets(name)').order('expiry_date'),
-            supabase
-              .from('vet_appointments')
-              .select('*, pets(name)')
-              .eq('status', 'scheduled')
-              .gte('appointment_date', new Date().toISOString())
-              .order('appointment_date')
-              .limit(5),
-          ])
+        const results = await Promise.allSettled([
+          supabase.from('insurance').select('*, pets(name)').order('expiry_date'),
+          supabase.from('vaccines').select('*, pets(name)').order('next_due_date'),
+          supabase.from('parasite_control').select('*, pets(name)').order('next_due_date'),
+          supabase.from('service_certificates').select('*, pets(name)').order('expiry_date'),
+          supabase
+            .from('vet_appointments')
+            .select('*, pets(name)')
+            .eq('status', 'scheduled')
+            .gte('appointment_date', new Date().toISOString())
+            .order('appointment_date')
+            .limit(5),
+        ])
+
+        const getData = (r: PromiseSettledResult<any>) => r.status === 'fulfilled' ? r.value.data ?? [] : []
+        const insurance = getData(results[0])
+        const vaccines = getData(results[1])
+        const parasites = getData(results[2])
+        const certs = getData(results[3])
+        const appts = getData(results[4])
 
         const allAlerts: Alert[] = [
-          ...(insurance ?? []).map((r) => ({ label: `Seguro de ${(r.pets as any)?.name}`, date: r.expiry_date, days: getDaysUntil(r.expiry_date) })),
-          ...(vaccines ?? []).map((r) => ({ label: `${(r.pets as any)?.name} — ${r.name}`, date: r.next_due_date, days: getDaysUntil(r.next_due_date) })),
-          ...(parasites ?? []).map((r) => ({ label: `${(r.pets as any)?.name} — ${r.product_name}`, date: r.next_due_date, days: getDaysUntil(r.next_due_date) })),
-          ...(certs ?? []).map((r) => ({ label: `Certificado de ${(r.pets as any)?.name}`, date: r.expiry_date, days: getDaysUntil(r.expiry_date) })),
+          ...insurance.map((r: any) => ({ label: `Seguro de ${r.pets?.name}`, date: r.expiry_date, days: getDaysUntil(r.expiry_date) })),
+          ...vaccines.map((r: any) => ({ label: `${r.pets?.name} — ${r.name}`, date: r.next_due_date, days: getDaysUntil(r.next_due_date) })),
+          ...parasites.map((r: any) => ({ label: `${r.pets?.name} — ${r.product_name}`, date: r.next_due_date, days: getDaysUntil(r.next_due_date) })),
+          ...certs.map((r: any) => ({ label: `Certificado de ${r.pets?.name}`, date: r.expiry_date, days: getDaysUntil(r.expiry_date) })),
         ]
           .filter((a) => a.days !== null && a.days <= 60)
           .sort((a, b) => (a.days ?? 0) - (b.days ?? 0))
 
         setAlerts(allAlerts)
-        setAppointments(appts ?? [])
-      } catch (err) {
-        console.error('Error loading dashboard data:', err)
+        setAppointments(appts)
+      } catch {
+        // Dashboard data failed — show empty state
       }
       setLoading(false)
     }
