@@ -282,7 +282,7 @@ export default function PetPage({ petId, petName, petType, insurance, vaccines, 
                 currentFileUrl={fileUrl}
                 accept="image/*,.pdf"
                 maxSizeMB={10}
-                storagePath={buildStoragePath(petId, 'lab_exams', editItem?.id ?? 'new', '')}
+                storagePath={`${petId}/lab_exams/${editItem?.id ?? 'new'}`}
                 onUpload={(url) => setFileUrl(url)}
                 onRemove={() => setFileUrl(null)}
               />
@@ -292,7 +292,7 @@ export default function PetPage({ petId, petName, petType, insurance, vaccines, 
                 currentFileUrl={fileUrl}
                 accept="image/jpeg,image/png"
                 maxSizeMB={10}
-                storagePath={buildStoragePath(petId, 'vaccines', editItem?.id ?? 'new', '')}
+                storagePath={`${petId}/vaccines/${editItem?.id ?? 'new'}`}
                 onUpload={(url) => setFileUrl(url)}
                 onRemove={() => setFileUrl(null)}
               />

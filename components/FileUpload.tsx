@@ -137,8 +137,9 @@ export default function FileUpload({
 
       await uploadFile(supabase, fullPath, file)
       onUpload(fullPath)
-    } catch {
-      setError('Error al subir el archivo. Intenta de nuevo.')
+    } catch (err) {
+      console.error('Upload error:', err)
+      setError(`Error al subir el archivo: ${err instanceof Error ? err.message : 'Intenta de nuevo.'}`)
     } finally {
       setUploading(false)
       resetInput()
