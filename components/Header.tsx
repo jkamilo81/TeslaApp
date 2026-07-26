@@ -8,7 +8,8 @@ export default function Header() {
   const pathname = usePathname()
   const router = useRouter()
 
-  if (pathname === '/login') return null
+  // No app chrome on the login screen or on printable documents
+  if (pathname === '/login' || pathname.startsWith('/certificado')) return null
 
   async function handleSignOut() {
     await supabase.auth.signOut()

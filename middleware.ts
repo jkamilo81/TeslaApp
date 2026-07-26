@@ -25,9 +25,14 @@ export async function middleware(request: NextRequest) {
     }
   )
 
+  // Routes reachable without a session. `/certificado/*` is intentionally
+  // public so a printed certificate can be verified by scanning its URL.
+  const PUBLIC_PREFIXES = ['/login', '/api', '/certificado']
+  const isPublic = PUBLIC_PREFIXES.some((p) => request.nextUrl.pathname.startsWith(p))
+
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user && !request.nextUrl.pathname.startsWith('/login') && !request.nextUrl.pathname.startsWith('/api')) {
+  if (!user && !isPublic) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)

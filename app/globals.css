@@ -93,3 +93,53 @@
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
 }
+
+/* --- Printable document sheet (certificate pages) --- */
+.cert-sheet {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  background: #ffffff;
+  color: #1a1c18;
+}
+
+@media screen and (max-width: 230mm) {
+  .cert-sheet {
+    width: 100%;
+    min-height: 0;
+  }
+}
+
+@media print {
+  /* A small page margin keeps the decorative border clear of the
+     non-printable edge that most printers enforce. */
+  @page {
+    size: A4;
+    margin: 8mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .print-hide {
+    display: none !important;
+  }
+
+  .cert-sheet {
+    width: auto;
+    min-height: 0;
+    box-shadow: none !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Screen padding is generous for readability; on paper the @page margin
+     already provides the inset, so tighten it to keep the document on one sheet. */
+  .cert-sheet > div {
+    padding: 6mm !important;
+  }
+}

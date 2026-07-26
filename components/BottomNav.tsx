@@ -40,7 +40,8 @@ export default function BottomNav() {
     ...STATIC_ITEMS.rest,
   ]
 
-  if (pathname === '/login') return null
+  // No app chrome on the login screen or on printable documents
+  if (pathname === '/login' || pathname.startsWith('/certificado')) return null
 
   return (
     <nav className="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-3 bg-white/90 glass-header rounded-t-[32px] md:hidden">
