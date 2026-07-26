@@ -1,7 +1,7 @@
 {
   "name": "TeslaApp",
   "short_name": "TeslaApp",
-  "description": "Salud de Tesla y Figo",
+  "description": "Salud y cuidado de tus mascotas",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#fffcf7",

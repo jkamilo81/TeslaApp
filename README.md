@@ -1,6 +1,8 @@
 # TeslaApp — Pet Tracker PWA
 
-Aplicación PWA para el seguimiento de salud, gastos y cuidado de mascotas con soporte multi-usuario mediante grupos familiares. Actualmente gestiona a **Tesla** (perro) y **Figo** (gato).
+Aplicación PWA para el seguimiento de salud, gastos y cuidado de mascotas con soporte multi-usuario mediante grupos familiares. Actualmente gestiona a **Kora** (perro) y **Figo** (gato).
+
+> En memoria de **Tesla** (2026). Su historial se conserva archivado: no aparece en el dashboard, la navegación ni los recordatorios, pero sus registros y gastos siguen visibles en Historial y Gastos.
 
 ## Stack
 
@@ -27,7 +29,11 @@ Aplicación PWA para el seguimiento de salud, gastos y cuidado de mascotas con s
 - Acceso directo a Historial Médico y Centro de Gastos
 - FAB con speed dial para navegación rápida
 
-### Perfiles de Mascota (`/tesla`, `/figo`)
+### Perfiles de Mascota (`/[pet]`)
+
+La ruta es dinámica: el slug se resuelve contra las mascotas activas de la familia
+(`Kora` → `/kora`). Las mascotas archivadas no tienen perfil y devuelven 404.
+
 Cada mascota tiene secciones con formularios CRUD completos:
 - **Seguro** — póliza, fechas, proveedor
 - **Vacunas** — con foto comprobante adjunta (JPEG/PNG)
@@ -43,7 +49,7 @@ Todos los formularios incluyen:
 - **Archivos adjuntos** — en exámenes de laboratorio y vacunas vía Supabase Storage
 
 ### Centro de Gastos (`/gastos`)
-- Filtro por mascota (Todos, Tesla, Figo)
+- Filtro por mascota (incluye mascotas archivadas, para conservar el histórico)
 - Selector de rango de fechas
 - Total del período en COP
 - Desglose por categoría con barras de progreso
@@ -73,7 +79,11 @@ Todos los formularios incluyen:
 - `families` — grupos familiares
 - `family_members` — membresía con roles (admin/member)
 - `family_invitations` — códigos de invitación con expiración
-- `pets` — mascotas (vinculadas a familia vía `family_id`)
+- `pets` — mascotas (vinculadas a familia vía `family_id`). Datos de perfil:
+  `name`, `type` (dog/cat), `breed`, `birth_date`, `sex` (female/male).
+  `archived_at` no nulo marca una mascota inactiva: se oculta del dashboard, la
+  navegación, su perfil y los recordatorios, pero conserva todos sus registros
+  históricos
 - `insurance`, `vaccines`, `parasite_control`, `service_certificates`, `vet_appointments` — registros médicos
 - `lab_exams` — exámenes de laboratorio con archivo adjunto
 - `food_purchases` — compras de alimento
@@ -105,7 +115,12 @@ supabase/migrations/
 ├── 20260327000002_enhanced_rls.sql            # RLS para tablas nuevas
 ├── 20260327000003_storage_bucket.sql          # Bucket de Storage
 ├── 20260328000001_family_groups_schema.sql    # Tablas de familias + migración de datos
-└── 20260328000002_family_groups_rls.sql       # RLS basado en familia (reemplaza todo)
+├── 20260328000002_family_groups_rls.sql       # RLS basado en familia (reemplaza todo)
+├── 20260328000003_seed_payers.sql             # Pagadores por defecto
+├── 20260329000001_fix_recursive_rls.sql       # get_my_family_ids() — rompe recursión en RLS
+├── 20260329000002_fix_record_tables_rls.sql   # RLS de tablas de registros
+├── 20260726000001_archive_pets_and_add_kora.sql # pets.archived_at; archiva Tesla, agrega Kora
+└── 20260726000002_kora_details.sql            # pets.sex; raza y fecha de nacimiento de Kora
 ```
 
 ## Estructura del Proyecto
@@ -114,8 +129,7 @@ supabase/migrations/
 pet-tracker/
 ├── app/
 │   ├── page.tsx              # Dashboard (dinámico)
-│   ├── tesla/page.tsx        # Perfil Tesla
-│   ├── figo/page.tsx         # Perfil Figo
+│   ├── [pet]/page.tsx        # Perfil de mascota (ruta dinámica por slug)
 │   ├── gastos/page.tsx       # Centro de Gastos
 │   ├── historial/page.tsx    # Historial Médico
 │   ├── familia/page.tsx      # Gestión de familia

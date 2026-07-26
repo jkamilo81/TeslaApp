@@ -1,18 +1,44 @@
 'use client'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+import { petSlug } from '@/lib/pets'
 
-const NAV_ITEMS = [
-  { href: '/', icon: 'home', label: 'Inicio' },
-  { href: '/tesla', icon: 'pets', label: 'Tesla' },
-  { href: '/figo', icon: 'pets', label: 'Figo' },
-  { href: '/gastos', icon: 'payments', label: 'Gastos' },
-  { href: '/historial', icon: 'clinical_notes', label: 'Historial' },
-  { href: '/familia', icon: 'group', label: 'Familia' },
-]
+const STATIC_ITEMS = {
+  home: { href: '/', icon: 'home', label: 'Inicio' },
+  rest: [
+    { href: '/gastos', icon: 'payments', label: 'Gastos' },
+    { href: '/historial', icon: 'clinical_notes', label: 'Historial' },
+    { href: '/familia', icon: 'group', label: 'Familia' },
+  ],
+}
 
 export default function BottomNav() {
   const pathname = usePathname()
+  const [pets, setPets] = useState<{ id: string; name: string }[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadPets() {
+      const { data } = await supabase
+        .from('pets')
+        .select('id, name')
+        .is('archived_at', null)
+        .order('name')
+      if (!cancelled) setPets(data ?? [])
+    }
+    loadPets()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const NAV_ITEMS = [
+    STATIC_ITEMS.home,
+    ...pets.map((pet) => ({ href: `/${petSlug(pet.name)}`, icon: 'pets', label: pet.name })),
+    ...STATIC_ITEMS.rest,
+  ]
 
   if (pathname === '/login') return null
 

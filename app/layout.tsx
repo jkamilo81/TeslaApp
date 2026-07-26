@@ -6,7 +6,7 @@ import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar'
 
 export const metadata: Metadata = {
   title: 'TeslaApp',
-  description: 'Salud de Tesla y Figo',
+  description: 'Salud y cuidado de tus mascotas',
   manifest: '/manifest.json',
   appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'TeslaApp' },
 }

@@ -133,7 +133,7 @@ export default function HistorialPage() {
         <h2 className="text-4xl font-headline font-extrabold text-on-surface mt-1 tracking-tight">
           Historial Médico
         </h2>
-        <p className="text-on-surface-variant text-lg mt-1">Todos los registros de Tesla y Figo.</p>
+        <p className="text-on-surface-variant text-lg mt-1">Todos los registros de tus mascotas.</p>
       </section>
 
       {/* Filter chips */}

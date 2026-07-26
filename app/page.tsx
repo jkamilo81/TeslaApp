@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getDaysUntil } from '@/lib/notifications'
+import { petSlug } from '@/lib/pets'
 import EnableNotifications from '@/components/EnableNotifications'
 
 interface Alert {
@@ -34,8 +35,11 @@ export default function Dashboard() {
   }, [fabOpen])
 
   const FAB_ACTIONS = [
-    { label: 'Tesla', icon: 'pets', href: '/tesla' },
-    { label: 'Figo', icon: 'cruelty_free', href: '/figo' },
+    ...pets.map((pet) => ({
+      label: pet.name,
+      icon: pet.type === 'dog' ? 'pets' : 'cruelty_free',
+      href: `/${petSlug(pet.name)}`,
+    })),
     { label: 'Gastos', icon: 'payments', href: '/gastos' },
   ]
 
@@ -56,7 +60,11 @@ export default function Dashboard() {
       }
 
       try {
-        const { data: petsData } = await supabase.from('pets').select('id, name, type').order('name')
+        const { data: petsData } = await supabase
+          .from('pets')
+          .select('id, name, type')
+          .is('archived_at', null)
+          .order('name')
         setPets(petsData ?? [])
       } catch {
         // Pets query failed — show empty state
@@ -64,20 +72,26 @@ export default function Dashboard() {
 
       try {
         const results = await Promise.allSettled([
-          supabase.from('insurance').select('*, pets(name)').order('expiry_date'),
-          supabase.from('vaccines').select('*, pets(name)').order('next_due_date'),
-          supabase.from('parasite_control').select('*, pets(name)').order('next_due_date'),
-          supabase.from('service_certificates').select('*, pets(name)').order('expiry_date'),
+          supabase.from('insurance').select('*, pets(name, archived_at)').order('expiry_date'),
+          supabase.from('vaccines').select('*, pets(name, archived_at)').order('next_due_date'),
+          supabase.from('parasite_control').select('*, pets(name, archived_at)').order('next_due_date'),
+          supabase.from('service_certificates').select('*, pets(name, archived_at)').order('expiry_date'),
           supabase
             .from('vet_appointments')
-            .select('*, pets(name)')
+            .select('*, pets(name, archived_at)')
             .eq('status', 'scheduled')
             .gte('appointment_date', new Date().toISOString())
             .order('appointment_date')
             .limit(5),
         ])
 
-        const getData = (r: PromiseSettledResult<any>) => r.status === 'fulfilled' ? r.value.data ?? [] : []
+        // Archived pets keep their records for Historial/Gastos, but must not
+        // raise alerts or show upcoming appointments on the dashboard.
+        type RecordWithPet = { pets?: { archived_at?: string | null } | null }
+        const getData = (r: PromiseSettledResult<any>) =>
+          r.status === 'fulfilled'
+            ? (r.value.data ?? []).filter((row: RecordWithPet) => !row.pets?.archived_at)
+            : []
         const insurance = getData(results[0])
         const vaccines = getData(results[1])
         const parasites = getData(results[2])
@@ -146,7 +160,7 @@ export default function Dashboard() {
                   const ringText = isDog ? 'text-on-secondary' : 'text-on-tertiary'
                   const typeLabel = isDog ? 'Perro' : 'Gato'
                   return (
-                    <Link key={pet.id} href={`/${pet.name.toLowerCase()}`} className="group">
+                    <Link key={pet.id} href={`/${petSlug(pet.name)}`} className="group">
                       <div className="bg-surface-container-lowest p-6 rounded-xl ambient-shadow flex flex-col justify-between relative overflow-hidden h-full transition-all duration-300 hover:translate-y-[-4px]">
                         <div className={`absolute -right-4 -top-4 w-32 h-32 ${bgBlob} rounded-full blur-2xl group-hover:scale-125 transition-transform`} />
                         <div className="relative z-10">

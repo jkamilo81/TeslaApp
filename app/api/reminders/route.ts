@@ -54,9 +54,12 @@ export async function GET() {
   const in30 = new Date(today)
   in30.setDate(today.getDate() + 30)
 
+  // `pets!inner` + archived_at filter keeps archived pets out of all reminders.
+  // This runs with the service role, so RLS does not filter for us.
   const { data: insurance } = await supabase
     .from('insurance')
-    .select('*, pets(name, family_id)')
+    .select('*, pets!inner(name, family_id, archived_at)')
+    .is('pets.archived_at', null)
     .lte('expiry_date', in30.toISOString().split('T')[0])
     .gte('expiry_date', todayStr)
 
@@ -66,7 +69,8 @@ export async function GET() {
 
   const { data: vaccines } = await supabase
     .from('vaccines')
-    .select('*, pets(name, family_id)')
+    .select('*, pets!inner(name, family_id, archived_at)')
+    .is('pets.archived_at', null)
     .lte('next_due_date', in30.toISOString().split('T')[0])
     .gte('next_due_date', todayStr)
 
@@ -76,7 +80,8 @@ export async function GET() {
 
   const { data: parasites } = await supabase
     .from('parasite_control')
-    .select('*, pets(name, family_id)')
+    .select('*, pets!inner(name, family_id, archived_at)')
+    .is('pets.archived_at', null)
     .lte('next_due_date', in30.toISOString().split('T')[0])
     .gte('next_due_date', todayStr)
 
@@ -88,7 +93,8 @@ export async function GET() {
   // Query appointments that are exactly 3 days or 1 day from today, status = 'scheduled'
   const { data: appointments } = await supabase
     .from('vet_appointments')
-    .select('*, pets(name, family_id)')
+    .select('*, pets!inner(name, family_id, archived_at)')
+    .is('pets.archived_at', null)
     .eq('status', 'scheduled')
     .in('appointment_date', [in3Str, in1Str])
 

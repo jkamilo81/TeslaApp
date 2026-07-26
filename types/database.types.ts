@@ -421,32 +421,38 @@ export type Database = {
       }
       pets: {
         Row: {
+          archived_at: string | null
           birth_date: string | null
           breed: string | null
           created_at: string | null
           family_id: string | null
           id: string
           name: string
+          sex: string | null
           type: string
           user_id: string | null
         }
         Insert: {
+          archived_at?: string | null
           birth_date?: string | null
           breed?: string | null
           created_at?: string | null
           family_id?: string | null
           id?: string
           name: string
+          sex?: string | null
           type: string
           user_id?: string | null
         }
         Update: {
+          archived_at?: string | null
           birth_date?: string | null
           breed?: string | null
           created_at?: string | null
           family_id?: string | null
           id?: string
           name?: string
+          sex?: string | null
           type?: string
           user_id?: string | null
         }

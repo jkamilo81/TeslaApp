@@ -202,7 +202,7 @@ export default function GastosPage() {
         <h2 className="text-4xl font-headline font-extrabold text-on-surface mt-1 tracking-tight">
           Gastos
         </h2>
-        <p className="text-on-surface-variant text-lg mt-1">Control de gastos de Tesla y Figo.</p>
+        <p className="text-on-surface-variant text-lg mt-1">Control de gastos de tus mascotas.</p>
       </section>
 
       {/* Pet selector chips */}

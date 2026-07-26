@@ -1,5 +1,5 @@
-const CACHE_NAME = 'pet-tracker-v1'
-const STATIC_ASSETS = ['/', '/tesla', '/figo']
+const CACHE_NAME = 'pet-tracker-v2'
+const STATIC_ASSETS = ['/']
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
