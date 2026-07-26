@@ -98,7 +98,7 @@ export default function KoraCertificatePage() {
       </div>
 
       <article className="cert-sheet ambient-shadow-lg print:shadow-none">
-        <div className="flex min-h-full flex-col border-[6px] border-double border-primary/70 p-10 sm:p-12 print:min-h-0">
+        <div className="flex min-h-full flex-col border-[6px] border-double border-primary/70 p-10 sm:p-12 print:min-h-[262mm]">
           {/* Issuer header */}
           <header className="flex items-start justify-between gap-6 border-b border-neutral-300 pb-6 print:pb-2">
             <div className="flex items-center gap-4">
@@ -248,39 +248,26 @@ export default function KoraCertificatePage() {
             </div>
           </section>
 
-          {/* Scope of the document */}
-          <aside className="mt-auto rounded-lg border border-neutral-300 bg-neutral-50 px-5 py-4 print:py-3">
-            <h4 className="mb-2 font-label text-[10px] font-bold uppercase tracking-[0.12em] text-neutral-600">
-              <span lang="es">Alcance de este documento</span>
-              <span aria-hidden="true"> / </span>
-              <span lang="en">Scope of this document</span>
-            </h4>
-            <div className="grid gap-4 sm:grid-cols-2 sm:gap-5">
-            <p lang="es" className="font-body text-[9.5px] leading-snug text-neutral-600 print:leading-tight">
-              Este certificado es un registro privado emitido por {CERT.issuer.name} y refleja únicamente el
-              entrenamiento impartido por esta entidad y la valoración de la profesional firmante. No constituye
-              una certificación oficial ni un registro gubernamental. No está avalado, acreditado ni respaldado por
-              Assistance Dogs International, IAABC, US Service Animals ni ninguna otra entidad acreditadora. Por sí
-              solo no confiere derechos de acceso a espacios públicos, transporte aéreo ni vivienda: dichos
-              derechos se rigen por la legislación aplicable en cada jurisdicción.
+          {/* Footer — carries a one-line statement of what this document is.
+              Kept deliberately brief and unobtrusive, but not removed: without
+              it the document reads as an official certification conferring
+              access rights, which it is not. */}
+          <footer className="mt-auto border-t border-neutral-300 pt-4 print:pt-3">
+            <p lang="es" className="font-body text-[9px] leading-snug text-neutral-500">
+              Registro privado de entrenamiento emitido por {CERT.issuer.name}. No constituye una certificación
+              oficial ni un registro gubernamental, no está avalado por terceros y por sí solo no confiere derechos
+              de acceso.
             </p>
-            <p lang="en" className="font-body text-[9.5px] leading-snug text-neutral-600 print:leading-tight">
-              This certificate is a private record issued by {CERT.issuer.name} and reflects only the training
-              delivered by this organisation and the assessment of the signing professional. It is not an official
-              or government certification. It is not endorsed, accredited or otherwise backed by Assistance Dogs
-              International, IAABC, US Service Animals or any other accrediting body. On its own it does not grant
-              rights of access to public spaces, air travel or housing; such rights are governed by the applicable
-              law of each jurisdiction.
+            <p lang="en" className="mt-1 font-body text-[9px] leading-snug text-neutral-500">
+              Private training record issued by {CERT.issuer.name}. It is not an official or government
+              certification, is not third-party endorsed, and does not by itself confer access rights.
             </p>
+            <div className="mt-3 flex items-end justify-between gap-4 border-t border-neutral-200 pt-3 print:mt-2 print:pt-2">
+              <p className="font-body text-[10px] leading-snug text-neutral-500">
+                {CERT.issuer.name} · NIT {CERT.issuer.nit} · {CERT.issuer.email}
+              </p>
+              <p className="font-mono text-[10px] text-neutral-500">{CERT.number}</p>
             </div>
-          </aside>
-
-          {/* Footer */}
-          <footer className="mt-5 flex items-end justify-between gap-4 border-t border-neutral-300 pt-4 print:mt-3 print:pt-3">
-            <p className="font-body text-[10px] leading-snug text-neutral-500">
-              {CERT.issuer.name} · NIT {CERT.issuer.nit} · {CERT.issuer.email}
-            </p>
-            <p className="font-mono text-[10px] text-neutral-500">{CERT.number}</p>
           </footer>
         </div>
       </article>

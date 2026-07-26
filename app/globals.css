@@ -103,6 +103,7 @@
   color: #1a1c18;
 }
 
+
 @media screen and (max-width: 230mm) {
   .cert-sheet {
     width: 100%;
@@ -142,4 +143,5 @@
   .cert-sheet > div {
     padding: 6mm !important;
   }
+
 }
