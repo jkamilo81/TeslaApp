@@ -1,45 +1,16 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import type { Database } from '@/types/database.types'
+import { createServerSupabase } from '@/lib/supabase-server'
+import { createAdminSupabase } from '@/lib/supabase-admin'
 
 export async function GET() {
-  const cookieStore = await cookies()
-
-  // Authenticated client to get the session
-  const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          } catch {
-            // Server Component context — ignore
-          }
-        },
-      },
-    }
-  )
-
+  const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // Service role client to bypass RLS
-  const serviceClient = createClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const serviceClient = createAdminSupabase()
 
   // Get the user's family_id
   const { data: membership } = await serviceClient

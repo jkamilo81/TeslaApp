@@ -269,6 +269,56 @@ export type Database = {
           },
         ]
       }
+      medications: {
+        Row: {
+          id: string
+          pet_id: string | null
+          name: string
+          dosage: string | null
+          frequency: string | null
+          start_date: string
+          end_date: string | null
+          vet_name: string | null
+          cost_cop: number | null
+          notes: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          pet_id?: string | null
+          name: string
+          dosage?: string | null
+          frequency?: string | null
+          start_date: string
+          end_date?: string | null
+          vet_name?: string | null
+          cost_cop?: number | null
+          notes?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          pet_id?: string | null
+          name?: string
+          dosage?: string | null
+          frequency?: string | null
+          start_date?: string
+          end_date?: string | null
+          vet_name?: string | null
+          cost_cop?: number | null
+          notes?: string | null
+          created_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medications_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_log: {
         Row: {
           id: string

@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 interface TimelineEntry {
   id: string
   petName: string
-  type: 'vaccine' | 'insurance' | 'parasite' | 'certificate' | 'appointment' | 'lab_exam' | 'food_purchase'
+  type: 'vaccine' | 'insurance' | 'parasite' | 'certificate' | 'appointment' | 'lab_exam' | 'medication' | 'food_purchase'
   title: string
   subtitle: string | null
   date: string
@@ -21,6 +21,7 @@ const TYPE_META: Record<TimelineEntry['type'], { label: string; icon: string; ch
   certificate: { label: 'Certificado', icon: 'workspace_premium', chipBg: 'bg-tertiary-fixed/20', chipText: 'text-tertiary' },
   appointment: { label: 'Cita', icon: 'medical_services', chipBg: 'bg-primary-container/30', chipText: 'text-primary' },
   lab_exam: { label: 'Examen', icon: 'biotech', chipBg: 'bg-tertiary-container/20', chipText: 'text-on-tertiary-container' },
+  medication: { label: 'Medicamento', icon: 'medication', chipBg: 'bg-primary-container/20', chipText: 'text-on-primary-container' },
   food_purchase: { label: 'Alimento', icon: 'pet_supplies', chipBg: 'bg-secondary-container/20', chipText: 'text-on-secondary-container' },
 }
 
@@ -31,7 +32,7 @@ export default function HistorialPage() {
 
   useEffect(() => {
     async function load() {
-      const [{ data: vaccines }, { data: insurance }, { data: parasites }, { data: certs }, { data: appointments }, { data: labExams }, { data: foodPurchases }] =
+      const [{ data: vaccines }, { data: insurance }, { data: parasites }, { data: certs }, { data: appointments }, { data: labExams }, { data: medications }, { data: foodPurchases }] =
         await Promise.all([
           supabase.from('vaccines').select('*, pets(name)').order('administered_date', { ascending: false }),
           supabase.from('insurance').select('*, pets(name)').order('start_date', { ascending: false }),
@@ -39,6 +40,7 @@ export default function HistorialPage() {
           supabase.from('service_certificates').select('*, pets(name)').order('issued_date', { ascending: false }),
           supabase.from('vet_appointments').select('*, pets(name)').order('appointment_date', { ascending: false }),
           supabase.from('lab_exams').select('*, pets(name)').order('exam_date', { ascending: false }),
+          supabase.from('medications').select('*, pets(name)').order('start_date', { ascending: false }),
           supabase.from('food_purchases').select('*, pets(name)').order('purchase_date', { ascending: false }),
         ])
 
@@ -96,6 +98,15 @@ export default function HistorialPage() {
           subtitle: r.vet_name ? `Vet: ${r.vet_name}` : null,
           date: r.exam_date,
           ...TYPE_META.lab_exam,
+        })),
+        ...(medications ?? []).map((r) => ({
+          id: r.id,
+          petName: (r.pets as any)?.name ?? '',
+          type: 'medication' as const,
+          title: r.name,
+          subtitle: [r.dosage, r.frequency].filter(Boolean).join(' · ') || null,
+          date: r.start_date,
+          ...TYPE_META.medication,
         })),
         ...(foodPurchases ?? []).map((r) => ({
           id: r.id,

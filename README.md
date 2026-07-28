@@ -23,7 +23,8 @@ Aplicación PWA para el seguimiento de salud, gastos y cuidado de mascotas con s
 - Gestión de miembros desde la página `/familia`
 
 ### Dashboard (`/`)
-- Tarjetas dinámicas de mascotas (cargadas desde la DB según la familia)
+- Tarjetas dinámicas de mascotas (cargadas desde la DB según la familia) con
+  raza, edad calculada desde `birth_date` y el próximo vencimiento de la mascota
 - Alertas de vencimientos próximos (seguro, vacunas, parásitos, certificados)
 - Próximas citas veterinarias
 - Acceso directo a Historial Médico y Centro de Gastos
@@ -41,6 +42,7 @@ Cada mascota tiene secciones con formularios CRUD completos:
 - **Certificados** — tipo, autoridad emisora, número
 - **Citas Veterinarias** — motivo, fecha/hora, clínica, estado
 - **Exámenes de Laboratorio** — nombre, fecha, veterinario, archivo adjunto (PDF/imagen)
+- **Medicamentos** — nombre, dosis, frecuencia, fechas de inicio/fin, veterinario
 - **Compras de Alimento** — marca, cantidad, unidad (kg/unidades), fecha
 
 Todos los formularios incluyen:
@@ -58,8 +60,21 @@ Todos los formularios incluyen:
 
 ### Historial Médico (`/historial`)
 - Timeline cronológica de todos los registros
-- Filtros por tipo (vacuna, seguro, parásitos, certificado, cita, examen, alimento)
+- Filtros por tipo (vacuna, seguro, parásitos, certificado, cita, examen, medicamento, alimento)
 - Agrupación por mes
+
+### Documentos (`/documentos`)
+- Bóveda de documentos: todos los archivos adjuntos (fotos de vacunas, exámenes PDF/imagen) en un solo lugar
+- Filtro por tipo, apertura vía URL firmada
+
+### Exportación de Calendario (`/api/calendar`)
+- Descarga ICS con las citas veterinarias programadas de la familia
+- Eventos con recordatorio 1 día antes; botones de exportación en el dashboard y en la pestaña de citas
+
+### Certificados públicos (`/certificado/[slug]`)
+- Ruta dinámica basada en un registro estático (`app/certificado/certificates.ts`)
+- Los datos son un snapshot intencional del momento de emisión (no se leen de la DB)
+- Para emitir un certificado nuevo se agrega una entrada al registro
 
 ### Notificaciones Push
 - Recordatorio automático **3 días** y **1 día** antes de citas veterinarias programadas
@@ -85,6 +100,7 @@ Todos los formularios incluyen:
   navegación, su perfil y los recordatorios, pero conserva todos sus registros
   históricos
 - `insurance`, `vaccines`, `parasite_control`, `service_certificates`, `vet_appointments` — registros médicos
+- `medications` — medicamentos (dosis, frecuencia, fechas de tratamiento)
 - `lab_exams` — exámenes de laboratorio con archivo adjunto
 - `food_purchases` — compras de alimento
 - `payers` — pagadores (vinculados a familia)
@@ -120,7 +136,8 @@ supabase/migrations/
 ├── 20260329000001_fix_recursive_rls.sql       # get_my_family_ids() — rompe recursión en RLS
 ├── 20260329000002_fix_record_tables_rls.sql   # RLS de tablas de registros
 ├── 20260726000001_archive_pets_and_add_kora.sql # pets.archived_at; archiva Tesla, agrega Kora
-└── 20260726000002_kora_details.sql            # pets.sex; raza y fecha de nacimiento de Kora
+├── 20260726000002_kora_details.sql            # pets.sex; raza y fecha de nacimiento de Kora
+└── 20260728000001_medications.sql             # Tabla medications + RLS
 ```
 
 ## Estructura del Proyecto
@@ -132,13 +149,16 @@ pet-tracker/
 │   ├── [pet]/page.tsx        # Perfil de mascota (ruta dinámica por slug)
 │   ├── gastos/page.tsx       # Centro de Gastos
 │   ├── historial/page.tsx    # Historial Médico
+│   ├── documentos/page.tsx   # Bóveda de documentos
 │   ├── familia/page.tsx      # Gestión de familia
+│   ├── certificado/          # Certificados públicos ([slug] + certificates.ts)
 │   ├── login/                # Login
 │   └── api/
 │       ├── family/
 │       │   ├── invite/       # POST — generar código de invitación
 │       │   ├── join/         # POST — unirse con código
 │       │   └── members/      # GET — listar, DELETE — eliminar miembro
+│       ├── calendar/         # GET — exportar citas como ICS
 │       ├── reminders/        # Cron diario de notificaciones
 │       └── push/             # Subscribe y send push
 ├── components/

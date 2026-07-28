@@ -1,50 +1,22 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
-import type { Database } from '@/types/database.types'
+import { createServerSupabase } from '@/lib/supabase-server'
+import { createAdminSupabase } from '@/lib/supabase-admin'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
 
   if (code) {
-    const cookieStore = await cookies()
-
-    // Regular client to exchange the code for a session
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          },
-        },
-      }
-    )
-
+    // Cookie-aware client to exchange the code for a session
+    const supabase = await createServerSupabase()
     const { error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!error) {
       const { data: { user } } = await supabase.auth.getUser()
 
       if (user) {
-        // Use service role client to bypass RLS for post-login setup
-        const serviceClient = createServerClient<Database>(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_ROLE_KEY!,
-          {
-            cookies: {
-              getAll() { return [] },
-              setAll() {},
-            },
-          }
-        )
+        // Service role client to bypass RLS for post-login setup
+        const serviceClient = createAdminSupabase()
 
         try {
           // Check if user already belongs to a family

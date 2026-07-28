@@ -4,19 +4,29 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { getDaysUntil } from '@/lib/notifications'
-import { petSlug } from '@/lib/pets'
+import { petSlug, petAge } from '@/lib/pets'
 import EnableNotifications from '@/components/EnableNotifications'
 
 interface Alert {
   label: string
   date: string | null
   days: number | null
+  petId?: string | null
+  short?: string
+}
+
+interface PetCard {
+  id: string
+  name: string
+  type: string
+  breed: string | null
+  birth_date: string | null
 }
 
 export default function Dashboard() {
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [appointments, setAppointments] = useState<any[]>([])
-  const [pets, setPets] = useState<{id: string, name: string, type: string}[]>([])
+  const [pets, setPets] = useState<PetCard[]>([])
   const [loading, setLoading] = useState(true)
   const [userName, setUserName] = useState<string | null>(null)
   const [fabOpen, setFabOpen] = useState(false)
@@ -62,7 +72,7 @@ export default function Dashboard() {
       try {
         const { data: petsData } = await supabase
           .from('pets')
-          .select('id, name, type')
+          .select('id, name, type, breed, birth_date')
           .is('archived_at', null)
           .order('name')
         setPets(petsData ?? [])
@@ -99,10 +109,10 @@ export default function Dashboard() {
         const appts = getData(results[4])
 
         const allAlerts: Alert[] = [
-          ...insurance.map((r: any) => ({ label: `Seguro de ${r.pets?.name}`, date: r.expiry_date, days: getDaysUntil(r.expiry_date) })),
-          ...vaccines.map((r: any) => ({ label: `${r.pets?.name} — ${r.name}`, date: r.next_due_date, days: getDaysUntil(r.next_due_date) })),
-          ...parasites.map((r: any) => ({ label: `${r.pets?.name} — ${r.product_name}`, date: r.next_due_date, days: getDaysUntil(r.next_due_date) })),
-          ...certs.map((r: any) => ({ label: `Certificado de ${r.pets?.name}`, date: r.expiry_date, days: getDaysUntil(r.expiry_date) })),
+          ...insurance.map((r: any) => ({ label: `Seguro de ${r.pets?.name}`, short: 'Seguro', petId: r.pet_id, date: r.expiry_date, days: getDaysUntil(r.expiry_date) })),
+          ...vaccines.map((r: any) => ({ label: `${r.pets?.name} — ${r.name}`, short: r.name, petId: r.pet_id, date: r.next_due_date, days: getDaysUntil(r.next_due_date) })),
+          ...parasites.map((r: any) => ({ label: `${r.pets?.name} — ${r.product_name}`, short: r.product_name, petId: r.pet_id, date: r.next_due_date, days: getDaysUntil(r.next_due_date) })),
+          ...certs.map((r: any) => ({ label: `Certificado de ${r.pets?.name}`, short: 'Certificado', petId: r.pet_id, date: r.expiry_date, days: getDaysUntil(r.expiry_date) })),
         ]
           .filter((a) => a.days !== null && a.days <= 60)
           .sort((a, b) => (a.days ?? 0) - (b.days ?? 0))
@@ -154,11 +164,16 @@ export default function Dashboard() {
                   const bgBlob = isDog ? 'bg-primary-container/20' : 'bg-tertiary-container/20'
                   const badgeBg = isDog ? 'bg-secondary-container text-on-secondary-container' : 'bg-tertiary-container text-on-tertiary-container'
                   const iconName = isDog ? 'pets' : 'cruelty_free'
-                  const subtitle = isDog ? 'Tu compañero fiel' : 'Tu amigo gentil'
+                  const age = petAge(pet.birth_date)
+                  const profileBits = [pet.breed, age].filter(Boolean).join(' · ')
+                  const subtitle = profileBits || (isDog ? 'Tu compañero fiel' : 'Tu amigo gentil')
                   const subtitleIcon = isDog ? 'favorite' : 'cruelty_free'
                   const ringColor = isDog ? 'bg-secondary' : 'bg-tertiary'
                   const ringText = isDog ? 'text-on-secondary' : 'text-on-tertiary'
                   const typeLabel = isDog ? 'Perro' : 'Gato'
+                  // alerts is sorted by days ascending, so the first upcoming
+                  // match is this pet's next due item
+                  const nextDue = alerts.find((a) => a.petId === pet.id && a.days !== null && a.days >= 0)
                   return (
                     <Link key={pet.id} href={`/${petSlug(pet.name)}`} className="group">
                       <div className="bg-surface-container-lowest p-6 rounded-xl ambient-shadow flex flex-col justify-between relative overflow-hidden h-full transition-all duration-300 hover:translate-y-[-4px]">
@@ -178,12 +193,19 @@ export default function Dashboard() {
                             {subtitle}
                           </p>
                         </div>
-                        <div className="mt-8 flex items-end justify-between relative z-10">
-                          <div className="flex -space-x-2">
-                            <div className={`w-8 h-8 rounded-full ${ringColor} flex items-center justify-center text-[10px] ${ringText} font-bold ring-2 ring-white`}>
-                              <span className="material-symbols-outlined text-xs">shield</span>
+                        <div className="mt-8 flex items-end justify-between gap-2 relative z-10">
+                          {nextDue ? (
+                            <span className="inline-flex items-center gap-1 bg-surface-container px-2.5 py-1 rounded-full text-[11px] font-semibold text-on-surface-variant min-w-0">
+                              <span className="material-symbols-outlined text-xs shrink-0">event_upcoming</span>
+                              <span className="truncate">{nextDue.short} · {nextDue.days}d</span>
+                            </span>
+                          ) : (
+                            <div className="flex -space-x-2">
+                              <div className={`w-8 h-8 rounded-full ${ringColor} flex items-center justify-center text-[10px] ${ringText} font-bold ring-2 ring-white`}>
+                                <span className="material-symbols-outlined text-xs">shield</span>
+                              </div>
                             </div>
-                          </div>
+                          )}
                           <span className={`text-${colorClass} font-bold text-sm flex items-center gap-1`}>
                             Ver Perfil
                             <span className="material-symbols-outlined text-sm">arrow_forward</span>
@@ -222,12 +244,32 @@ export default function Dashboard() {
                 </div>
               </Link>
 
+              {/* Documentos shortcut */}
+              <Link href="/documentos" className="bg-tertiary p-6 rounded-xl text-on-tertiary relative overflow-hidden group cursor-pointer active:scale-95 transition-all block">
+                <div className="relative z-10">
+                  <span className="material-symbols-outlined text-3xl mb-4">folder_open</span>
+                  <h3 className="font-headline text-xl font-bold">Documentos</h3>
+                  <p className="text-on-tertiary/80 text-sm mt-1">Carnés, exámenes y archivos adjuntos de tus mascotas.</p>
+                </div>
+                <div className="absolute -right-8 -bottom-8 opacity-10 group-hover:scale-110 transition-transform">
+                  <span className="material-symbols-outlined text-[120px]">description</span>
+                </div>
+              </Link>
+
               {/* Upcoming Appointments */}
               {appointments.length > 0 && (
                 <div className="bg-surface-container p-6 rounded-xl">
                   <div className="flex items-center justify-between mb-6">
                     <h3 className="font-headline font-bold">Próximas Citas</h3>
-                    <span className="text-xs font-bold text-primary uppercase tracking-widest">Próximos 7 Días</span>
+                    <a
+                      href="/api/calendar"
+                      download
+                      title="Exportar al calendario"
+                      className="flex items-center gap-1 text-xs font-bold text-primary uppercase tracking-widest hover:opacity-80 transition-opacity"
+                    >
+                      <span className="material-symbols-outlined text-sm">calendar_add_on</span>
+                      Exportar
+                    </a>
                   </div>
                   <div className="space-y-6">
                     {appointments.slice(0, 3).map((a) => (

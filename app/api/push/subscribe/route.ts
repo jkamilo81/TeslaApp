@@ -1,34 +1,15 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
-import type { Database } from '@/types/database.types'
+import { createServerSupabase } from '@/lib/supabase-server'
 
 export async function POST(req: NextRequest) {
   const { endpoint, keys } = await req.json()
 
-  const cookieStore = await cookies()
+  if (typeof endpoint !== 'string' || !endpoint
+    || typeof keys?.p256dh !== 'string' || typeof keys?.auth !== 'string') {
+    return NextResponse.json({ error: 'Invalid subscription' }, { status: 400 })
+  }
 
-  const supabase = createServerClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          } catch {
-            // Server Component context — ignore
-          }
-        },
-      },
-    }
-  )
-
+  const supabase = await createServerSupabase()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {

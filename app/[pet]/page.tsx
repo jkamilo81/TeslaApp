@@ -25,6 +25,7 @@ async function getPetData(slug: string) {
     { data: certs },
     { data: appointments },
     { data: labExams },
+    { data: medications },
     { data: foodPurchases },
   ] = await Promise.all([
     supabase.from('insurance').select('*').eq('pet_id', pet.id).order('expiry_date'),
@@ -33,10 +34,11 @@ async function getPetData(slug: string) {
     supabase.from('service_certificates').select('*').eq('pet_id', pet.id).order('expiry_date'),
     supabase.from('vet_appointments').select('*').eq('pet_id', pet.id).order('appointment_date'),
     supabase.from('lab_exams').select('*').eq('pet_id', pet.id).order('exam_date', { ascending: false }),
+    supabase.from('medications').select('*').eq('pet_id', pet.id).order('start_date', { ascending: false }),
     supabase.from('food_purchases').select('*').eq('pet_id', pet.id).order('purchase_date', { ascending: false }),
   ])
 
-  return { pet, insurance, vaccines, parasites, certs, appointments, labExams, foodPurchases }
+  return { pet, insurance, vaccines, parasites, certs, appointments, labExams, medications, foodPurchases }
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ pet: string }> }) {
@@ -61,6 +63,7 @@ export default async function Page({ params }: { params: Promise<{ pet: string }
       certs={data.certs ?? []}
       appointments={data.appointments ?? []}
       labExams={data.labExams ?? []}
+      medications={data.medications ?? []}
       foodPurchases={data.foodPurchases ?? []}
     />
   )

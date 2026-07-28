@@ -9,7 +9,7 @@ import { supabase } from '@/lib/supabase'
 import { formatCOP } from '@/lib/format'
 import { buildStoragePath, deleteFile } from '@/lib/storage'
 
-type Section = 'insurance' | 'vaccines' | 'parasite_control' | 'service_certificates' | 'vet_appointments' | 'lab_exams' | 'food_purchases'
+type Section = 'insurance' | 'vaccines' | 'parasite_control' | 'service_certificates' | 'vet_appointments' | 'lab_exams' | 'medications' | 'food_purchases'
 
 interface PetPageProps {
   petId: string
@@ -21,6 +21,7 @@ interface PetPageProps {
   certs: any[]
   appointments: any[]
   labExams?: any[]
+  medications?: any[]
   foodPurchases?: any[]
 }
 
@@ -31,10 +32,11 @@ const SECTIONS: { key: Section; label: string; icon: string; showFor?: 'dog' | '
   { key: 'service_certificates', label: 'Certificado', icon: 'workspace_premium', showFor: 'dog' },
   { key: 'vet_appointments', label: 'Citas', icon: 'medical_services' },
   { key: 'lab_exams', label: 'Exámenes', icon: 'biotech' },
+  { key: 'medications', label: 'Medicamentos', icon: 'medication' },
   { key: 'food_purchases', label: 'Alimento', icon: 'pet_supplies' },
 ]
 
-export default function PetPage({ petId, petName, petType, insurance, vaccines, parasites, certs, appointments, labExams, foodPurchases }: PetPageProps) {
+export default function PetPage({ petId, petName, petType, insurance, vaccines, parasites, certs, appointments, labExams, medications, foodPurchases }: PetPageProps) {
   const [activeSection, setActiveSection] = useState<Section>('insurance')
   const [showModal, setShowModal] = useState(false)
   const [editItem, setEditItem] = useState<any>(null)
@@ -43,6 +45,9 @@ export default function PetPage({ petId, petName, petType, insurance, vaccines, 
   const [costCop, setCostCop] = useState<number | null>(null)
   const [distributions, setDistributions] = useState<{ payer_id: string; amount: number }[]>([])
   const [fileUrl, setFileUrl] = useState<string | null>(null)
+  // Unique storage folder for records that don't have an id yet, so files
+  // from two new records never collide at the same path.
+  const [draftId, setDraftId] = useState('')
 
   // When cost changes and there's a single distribution, keep it in sync
   function handleCostChange(newCost: number | null) {
@@ -65,6 +70,7 @@ export default function PetPage({ petId, petName, petType, insurance, vaccines, 
     service_certificates: certs,
     vet_appointments: appointments,
     lab_exams: labExams ?? [],
+    medications: medications ?? [],
     food_purchases: foodPurchases ?? [],
   }
 
@@ -74,6 +80,7 @@ export default function PetPage({ petId, petName, petType, insurance, vaccines, 
     setCostCop(activeSection === 'food_purchases' ? 0 : null)
     setDistributions([])
     setFileUrl(null)
+    setDraftId(crypto.randomUUID())
     setShowModal(true)
   }
 
@@ -94,8 +101,21 @@ export default function PetPage({ petId, petName, petType, insurance, vaccines, 
 
   async function handleDelete(id: string) {
     if (!confirm('¿Eliminar este registro?')) return
-    // Delete associated file from Storage if present
     const record = dataMap[activeSection].find((item) => item.id === id)
+
+    // Delete the record first; only clean up related data if it succeeds.
+    const { error } = await supabase.from(activeSection).delete().eq('id', id)
+    if (error) {
+      alert(`No se pudo eliminar el registro: ${error.message}`)
+      return
+    }
+
+    // Clean up payment distributions and the attached file
+    await supabase
+      .from('payment_distributions')
+      .delete()
+      .eq('record_table', activeSection)
+      .eq('record_id', id)
     if (record?.file_url) {
       try {
         await deleteFile(supabase, record.file_url)
@@ -103,13 +123,6 @@ export default function PetPage({ petId, petName, petType, insurance, vaccines, 
         // Ignore delete errors
       }
     }
-    // Delete associated payment distributions first
-    await supabase
-      .from('payment_distributions')
-      .delete()
-      .eq('record_table', activeSection)
-      .eq('record_id', id)
-    await supabase.from(activeSection).delete().eq('id', id)
     window.location.reload()
   }
 
@@ -131,13 +144,22 @@ export default function PetPage({ petId, petName, petType, insurance, vaccines, 
     }
 
     let recordId: string | null = null
+    let saveError: { message: string } | null = null
 
     if (editItem) {
-      await supabase.from(activeSection).update(payload as any).eq('id', editItem.id)
+      const { error } = await supabase.from(activeSection).update(payload as any).eq('id', editItem.id)
+      saveError = error
       recordId = editItem.id
     } else {
-      const { data } = await supabase.from(activeSection).insert(payload as any).select('id').single()
+      const { data, error } = await supabase.from(activeSection).insert(payload as any).select('id').single()
+      saveError = error
       recordId = data?.id ?? null
+    }
+
+    if (saveError || !recordId) {
+      setLoading(false)
+      alert(`No se pudo guardar el registro: ${saveError?.message ?? 'error desconocido'}`)
+      return
     }
 
     // Save payment distributions if there's a cost and distributions
@@ -159,7 +181,10 @@ export default function PetPage({ petId, petName, petType, insurance, vaccines, 
           amount: d.amount,
         }))
       if (distRows.length > 0) {
-        await supabase.from('payment_distributions').insert(distRows)
+        const { error: distError } = await supabase.from('payment_distributions').insert(distRows)
+        if (distError) {
+          alert(`El registro se guardó, pero falló la distribución de pagos: ${distError.message}`)
+        }
       }
     } else if (recordId && (costCop == null || costCop === 0)) {
       // If cost was removed, clean up any existing distributions
@@ -220,6 +245,20 @@ export default function PetPage({ petId, petName, petType, insurance, vaccines, 
           </button>
         ))}
       </div>
+
+      {/* Calendar export for appointments */}
+      {activeSection === 'vet_appointments' && appointments.length > 0 && (
+        <div className="flex justify-end mt-2">
+          <a
+            href="/api/calendar"
+            download
+            className="flex items-center gap-1.5 text-sm font-semibold text-primary hover:opacity-80 transition-opacity"
+          >
+            <span className="material-symbols-outlined text-sm">calendar_add_on</span>
+            Exportar al calendario
+          </a>
+        </div>
+      )}
 
       {/* Records list */}
       <div className="space-y-4 mb-8 mt-4">
@@ -282,7 +321,7 @@ export default function PetPage({ petId, petName, petType, insurance, vaccines, 
                 currentFileUrl={fileUrl}
                 accept="image/*,.pdf"
                 maxSizeMB={10}
-                storagePath={`${petId}/lab_exams/${editItem?.id ?? 'new'}`}
+                storagePath={`${petId}/lab_exams/${editItem?.id ?? draftId}`}
                 onUpload={(url) => setFileUrl(url)}
                 onRemove={() => setFileUrl(null)}
               />
@@ -292,7 +331,7 @@ export default function PetPage({ petId, petName, petType, insurance, vaccines, 
                 currentFileUrl={fileUrl}
                 accept="image/jpeg,image/png"
                 maxSizeMB={10}
-                storagePath={`${petId}/vaccines/${editItem?.id ?? 'new'}`}
+                storagePath={`${petId}/vaccines/${editItem?.id ?? draftId}`}
                 onUpload={(url) => setFileUrl(url)}
                 onRemove={() => setFileUrl(null)}
               />
@@ -379,6 +418,16 @@ function getFields(section: Section): { key: string; label: string; type?: strin
         { key: 'vet_name', label: 'Veterinario' },
         { key: 'notes', label: 'Notas' },
       ]
+    case 'medications':
+      return [
+        { key: 'name', label: 'Nombre del Medicamento', required: true },
+        { key: 'dosage', label: 'Dosis (ej. 50mg, 1 tableta)' },
+        { key: 'frequency', label: 'Frecuencia (ej. cada 12 horas)' },
+        { key: 'start_date', label: 'Fecha de Inicio', type: 'date', required: true },
+        { key: 'end_date', label: 'Fecha de Fin', type: 'date' },
+        { key: 'vet_name', label: 'Veterinario' },
+        { key: 'notes', label: 'Notas' },
+      ]
     case 'food_purchases':
       return [
         { key: 'brand', label: 'Marca', required: true },
@@ -398,6 +447,7 @@ function getTitle(section: Section, item: any): string {
     case 'service_certificates': return item.certificate_type
     case 'vet_appointments': return item.reason
     case 'lab_exams': return item.name
+    case 'medications': return item.name
     case 'food_purchases': return item.brand
   }
 }
@@ -410,6 +460,8 @@ function getSubtitle(section: Section, item: any): string | null {
     case 'service_certificates': return item.issuing_authority ?? null
     case 'vet_appointments': return item.clinic_name ?? null
     case 'lab_exams': return item.vet_name ? `Vet: ${item.vet_name}` : null
+    case 'medications':
+      return [item.dosage, item.frequency].filter(Boolean).join(' · ') || null
     case 'food_purchases': return `${item.quantity} ${item.quantity_unit}`
   }
 }
@@ -422,6 +474,7 @@ function getExpiry(section: Section, item: any): string | null {
     case 'service_certificates': return item.expiry_date
     case 'vet_appointments': return item.appointment_date
     case 'lab_exams': return item.exam_date
+    case 'medications': return item.end_date
     case 'food_purchases': return item.purchase_date
   }
 }
@@ -443,6 +496,10 @@ function getMeta(section: Section, item: any): string | null {
     case 'lab_exams':
       if (item.exam_date) parts.push(`Fecha: ${item.exam_date}`)
       if (item.file_url) parts.push('📎 Archivo adjunto')
+      break
+    case 'medications':
+      if (item.start_date) parts.push(`Inicio: ${item.start_date}`)
+      if (item.vet_name) parts.push(`Vet: ${item.vet_name}`)
       break
     case 'food_purchases':
       if (item.purchase_date) parts.push(`Compra: ${item.purchase_date}`)

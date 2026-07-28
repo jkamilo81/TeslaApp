@@ -27,6 +27,7 @@ const CATEGORY_META: Record<string, { label: string; icon: string }> = {
   service_certificates: { label: 'Certificados', icon: 'workspace_premium' },
   vet_appointments: { label: 'Citas', icon: 'medical_services' },
   lab_exams: { label: 'Exámenes', icon: 'biotech' },
+  medications: { label: 'Medicamentos', icon: 'medication' },
   food_purchases: { label: 'Alimento', icon: 'pet_supplies' },
 }
 
@@ -37,6 +38,7 @@ const TABLE_DATE_COLUMNS: Record<string, string> = {
   service_certificates: 'issued_date',
   vet_appointments: 'appointment_date',
   lab_exams: 'exam_date',
+  medications: 'start_date',
   food_purchases: 'purchase_date',
 }
 

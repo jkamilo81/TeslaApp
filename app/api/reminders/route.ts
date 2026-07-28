@@ -1,15 +1,8 @@
-import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { NextRequest, NextResponse } from 'next/server'
 import webpush from 'web-push'
+import { createAdminSupabase } from '@/lib/supabase-admin'
 
 export const dynamic = 'force-dynamic'
-
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-}
 
 function initVapid() {
   webpush.setVapidDetails(
@@ -24,35 +17,48 @@ function formatDateES(dateStr: string): string {
   return date.toLocaleDateString('es-CO', { day: 'numeric', month: 'long' })
 }
 
-function formatTimeES(dateStr: string): string {
-  const date = new Date(dateStr)
-  return date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
+/** Today's calendar date in America/Bogota as YYYY-MM-DD (en-CA format). */
+function bogotaToday(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
 }
 
-function getDateOnly(date: Date): string {
-  return date.toISOString().split('T')[0]
+/** Add whole days to a YYYY-MM-DD string. */
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr + 'T00:00:00Z')
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().split('T')[0]
 }
 
 // Called by Vercel Cron daily at 8am
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // Vercel Cron sends `Authorization: Bearer ${CRON_SECRET}` automatically
+  // when the CRON_SECRET env var is set. Fail closed if it is missing.
+  const authHeader = req.headers.get('authorization')
+  if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   initVapid()
-  const supabase = getSupabase()
-  const today = new Date()
-  const todayStr = getDateOnly(today)
+  const supabase = createAdminSupabase()
+  // All date windows are computed against the calendar date in Colombia,
+  // not the server's UTC clock, so "3 days before" means Bogota days.
+  const todayStr = bogotaToday()
+  const in3Str = addDays(todayStr, 3)
+  const in1Str = addDays(todayStr, 1)
 
-  const in3 = new Date(today)
-  in3.setDate(today.getDate() + 3)
-  const in3Str = getDateOnly(in3)
+  // Alerts are grouped per family so each family only ever receives
+  // notifications about its own pets.
+  const alertsByFamily = new Map<string, string[]>()
 
-  const in1 = new Date(today)
-  in1.setDate(today.getDate() + 1)
-  const in1Str = getDateOnly(in1)
-
-  const alerts: string[] = []
+  function addAlert(familyId: string | null | undefined, message: string) {
+    if (!familyId) return
+    const list = alertsByFamily.get(familyId) ?? []
+    list.push(message)
+    alertsByFamily.set(familyId, list)
+  }
 
   // --- Existing alerts: insurance, vaccines, parasite control ---
-  const in30 = new Date(today)
-  in30.setDate(today.getDate() + 30)
+  const in30Str = addDays(todayStr, 30)
 
   // `pets!inner` + archived_at filter keeps archived pets out of all reminders.
   // This runs with the service role, so RLS does not filter for us.
@@ -60,33 +66,33 @@ export async function GET() {
     .from('insurance')
     .select('*, pets!inner(name, family_id, archived_at)')
     .is('pets.archived_at', null)
-    .lte('expiry_date', in30.toISOString().split('T')[0])
+    .lte('expiry_date', in30Str)
     .gte('expiry_date', todayStr)
 
   insurance?.forEach((r) => {
-    alerts.push(`El seguro de ${(r.pets as any)?.name} vence el ${r.expiry_date}`)
+    addAlert(r.pets?.family_id, `El seguro de ${r.pets?.name} vence el ${r.expiry_date}`)
   })
 
   const { data: vaccines } = await supabase
     .from('vaccines')
     .select('*, pets!inner(name, family_id, archived_at)')
     .is('pets.archived_at', null)
-    .lte('next_due_date', in30.toISOString().split('T')[0])
+    .lte('next_due_date', in30Str)
     .gte('next_due_date', todayStr)
 
   vaccines?.forEach((r) => {
-    alerts.push(`Vacuna ${r.name} de ${(r.pets as any)?.name} vence el ${r.next_due_date}`)
+    addAlert(r.pets?.family_id, `Vacuna ${r.name} de ${r.pets?.name} vence el ${r.next_due_date}`)
   })
 
   const { data: parasites } = await supabase
     .from('parasite_control')
     .select('*, pets!inner(name, family_id, archived_at)')
     .is('pets.archived_at', null)
-    .lte('next_due_date', in30.toISOString().split('T')[0])
+    .lte('next_due_date', in30Str)
     .gte('next_due_date', todayStr)
 
   parasites?.forEach((r) => {
-    alerts.push(`${r.product_name} de ${(r.pets as any)?.name} vence el ${r.next_due_date}`)
+    addAlert(r.pets?.family_id, `${r.product_name} de ${r.pets?.name} vence el ${r.next_due_date}`)
   })
 
   // --- Vet appointment reminders: exactly 3 days and 1 day before ---
@@ -98,7 +104,7 @@ export async function GET() {
     .eq('status', 'scheduled')
     .in('appointment_date', [in3Str, in1Str])
 
-  const appointmentNotifications: { appointmentId: string; type: string; body: string }[] = []
+  const appointmentNotifications: { appointmentId: string; type: string }[] = []
 
   if (appointments?.length) {
     for (const appt of appointments) {
@@ -118,69 +124,67 @@ export async function GET() {
         continue // Already sent this notification
       }
 
-      const petName = (appt.pets as any)?.name || 'Tu mascota'
+      const petName = appt.pets?.name || 'Tu mascota'
       const dateFormatted = formatDateES(apptDateStr)
       const body = `🐾 Recordatorio: ${petName} tiene cita veterinaria en ${daysLabel} (${dateFormatted}) por ${appt.reason}`
 
       appointmentNotifications.push({
         appointmentId: appt.id,
         type: notificationType,
-        body,
       })
 
-      alerts.push(body)
+      addAlert(appt.pets?.family_id, body)
     }
   }
 
-  // --- Collect family_ids from pets with alerts (insurance/vaccines/parasites) ---
-  const alertFamilyIds = new Set<string>()
-  insurance?.forEach((r) => { if ((r.pets as any)?.family_id) alertFamilyIds.add((r.pets as any).family_id) })
-  vaccines?.forEach((r) => { if ((r.pets as any)?.family_id) alertFamilyIds.add((r.pets as any).family_id) })
-  parasites?.forEach((r) => { if ((r.pets as any)?.family_id) alertFamilyIds.add((r.pets as any).family_id) })
+  // --- Send push notifications, one payload per family ---
+  let sent = 0
+  const familyIds = Array.from(alertsByFamily.keys())
 
-  // --- Send push notifications ---
-  if (alerts.length > 0) {
-    // Build the set of family_ids to notify (alerts + appointment families)
-    const notifyFamilyIds = new Set(alertFamilyIds)
-    appointments?.forEach((appt) => { if ((appt.pets as any)?.family_id) notifyFamilyIds.add((appt.pets as any).family_id) })
+  if (familyIds.length > 0) {
+    const { data: subs } = await supabase
+      .from('push_subscriptions')
+      .select('*')
+      .in('family_id', familyIds)
 
-    const familyIdList = Array.from(notifyFamilyIds)
-    const { data: subs } = familyIdList.length > 0
-      ? await supabase.from('push_subscriptions').select('*').in('family_id', familyIdList)
-      : { data: [] }
+    const targets = (subs ?? []).filter(
+      (sub) => sub.family_id && alertsByFamily.has(sub.family_id)
+    )
 
-    if (subs?.length) {
-      const payload = JSON.stringify({
-        title: '🐾 Recordatorio TeslaApp',
-        body: alerts.slice(0, 3).join(' • '),
-        url: '/',
-      })
-
+    if (targets.length) {
       const results = await Promise.allSettled(
-        subs.map((sub) =>
-          webpush.sendNotification(
+        targets.map((sub) => {
+          const familyAlerts = alertsByFamily.get(sub.family_id!) ?? []
+          const payload = JSON.stringify({
+            title: '🐾 Recordatorio TeslaApp',
+            body: familyAlerts.slice(0, 3).join(' • '),
+            url: '/',
+          })
+          return webpush.sendNotification(
             { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
             payload
           )
-        )
+        })
       )
 
       // Remove invalid subscriptions (410 Gone or 404 Not Found)
       for (let i = 0; i < results.length; i++) {
         const result = results[i]
-        if (result.status === 'rejected') {
+        if (result.status === 'fulfilled') {
+          sent++
+        } else {
           const statusCode = (result.reason as any)?.statusCode
           if (statusCode === 410 || statusCode === 404) {
             await supabase
               .from('push_subscriptions')
               .delete()
-              .eq('id', subs[i].id)
+              .eq('id', targets[i].id)
           }
         }
       }
     }
 
-    // Log successful appointment notifications
+    // Log appointment notifications so they are not sent again
     for (const notif of appointmentNotifications) {
       await supabase.from('notification_log').insert({
         appointment_id: notif.appointmentId,
@@ -189,5 +193,7 @@ export async function GET() {
     }
   }
 
-  return NextResponse.json({ alerts })
+  // Counts only — alert text must not leak to the caller.
+  const totalAlerts = familyIds.reduce((acc, id) => acc + (alertsByFamily.get(id)?.length ?? 0), 0)
+  return NextResponse.json({ ok: true, families: familyIds.length, alerts: totalAlerts, sent })
 }

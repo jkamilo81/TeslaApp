@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import webpush from 'web-push'
-import { createClient } from '@supabase/supabase-js'
+import { createAdminSupabase } from '@/lib/supabase-admin'
 
 export const dynamic = 'force-dynamic'
 
@@ -13,19 +13,13 @@ function getWebPush() {
   return webpush
 }
 
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
-}
-
 export async function POST(req: NextRequest) {
   const wp = getWebPush()
-  const supabase = getSupabase()
-  // Only allow calls from the cron job with the secret
+  const supabase = createAdminSupabase()
+  // Only allow calls from the cron job with the secret.
+  // Fail closed: if CRON_SECRET is not configured, nobody can call this.
   const cronSecret = req.headers.get('x-cron-secret')
-  if (process.env.CRON_SECRET && cronSecret !== process.env.CRON_SECRET) {
+  if (!process.env.CRON_SECRET || cronSecret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

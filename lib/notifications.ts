@@ -34,8 +34,17 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)))
 }
 
+/**
+ * Whole days between today (in America/Bogota) and a date string.
+ * Compares calendar dates only, so a due date "tomorrow" is always 1
+ * regardless of the current time or the server/browser timezone.
+ */
 export function getDaysUntil(dateStr: string | null): number | null {
   if (!dateStr) return null
-  const diff = new Date(dateStr).getTime() - new Date().getTime()
-  return Math.ceil(diff / (1000 * 60 * 60 * 24))
+  // en-CA formats as YYYY-MM-DD
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
+  const target = new Date(dateStr.split('T')[0] + 'T00:00:00Z').getTime()
+  const today = new Date(todayStr + 'T00:00:00Z').getTime()
+  if (isNaN(target)) return null
+  return Math.round((target - today) / 86400000)
 }
