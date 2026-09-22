@@ -106,6 +106,9 @@ export default function FamiliaPage() {
   }
 
   async function handleDelete(memberId: string) {
+    const member = members.find((m) => m.id === memberId)
+    const displayName = member?.name ?? member?.email ?? 'este miembro'
+    if (!confirm(`¿Eliminar a ${displayName} de la familia? Perderá acceso a los registros de las mascotas.`)) return
     setDeletingId(memberId)
     try {
       const res = await fetch(`/api/family/members/${memberId}`, { method: 'DELETE' })

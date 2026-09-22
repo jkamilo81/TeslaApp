@@ -3,21 +3,25 @@ import { useState } from 'react'
 import { requestNotificationPermission, subscribeToPush } from '@/lib/notifications'
 
 export default function EnableNotifications() {
-  const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'denied'>('idle')
+  const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'denied' | 'unsupported' | 'error'>('idle')
 
   async function enable() {
     setStatus('loading')
-    const granted = await requestNotificationPermission()
-    if (!granted) { setStatus('denied'); return }
-    const sub = await subscribeToPush()
-    if (sub) {
+    try {
+      const granted = await requestNotificationPermission()
+      if (!granted) { setStatus('denied'); return }
+      const sub = await subscribeToPush()
+      if (!sub) { setStatus('unsupported'); return }
       const json = sub.toJSON()
-      await fetch('/api/push/subscribe', {
+      const res = await fetch('/api/push/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
       })
+      if (!res.ok) { setStatus('error'); return }
       setStatus('done')
+    } catch {
+      setStatus('error')
     }
   }
 
@@ -38,6 +42,15 @@ export default function EnableNotifications() {
     )
   }
 
+  if (status === 'unsupported') {
+    return (
+      <span className="inline-flex items-center gap-1.5 bg-surface-container-highest text-on-surface-variant px-4 py-2 rounded-full text-sm font-semibold">
+        <span className="material-symbols-outlined text-sm">notifications_off</span>
+        Tu navegador no soporta notificaciones
+      </span>
+    )
+  }
+
   return (
     <button
       onClick={enable}
@@ -45,7 +58,7 @@ export default function EnableNotifications() {
       className="inline-flex items-center gap-1.5 bg-surface-container-highest text-on-surface px-4 py-2 rounded-full text-sm font-semibold hover:bg-surface-container-high active:scale-95 transition-all disabled:opacity-50"
     >
       <span className="material-symbols-outlined text-sm">notifications</span>
-      {status === 'loading' ? 'Activando...' : 'Activar recordatorios'}
+      {status === 'loading' ? 'Activando...' : status === 'error' ? 'No se pudo activar — Reintentar' : 'Activar recordatorios'}
     </button>
   )
 }

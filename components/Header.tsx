@@ -31,9 +31,6 @@ export default function Header() {
           </span>
         </Link>
         <div className="flex items-center gap-3">
-          <button className="text-on-surface-variant hover:text-primary transition-colors active:scale-95">
-            <span className="material-symbols-outlined">notifications</span>
-          </button>
           <button
             onClick={handleSignOut}
             className="text-on-surface-variant hover:text-error transition-colors active:scale-95"
