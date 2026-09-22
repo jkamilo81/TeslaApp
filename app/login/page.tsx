@@ -29,7 +29,14 @@ export default function LoginPage() {
       router.push('/')
       router.refresh()
     } else {
-      const { error } = await supabase.auth.signUp({ email, password })
+      // emailRedirectTo must be explicit: without it Supabase falls back to the
+      // dashboard "Site URL", which is easy to leave pointing at localhost and
+      // silently breaks confirmation links in production.
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      })
       if (error) {
         setError(error.message)
         setLoading(false)

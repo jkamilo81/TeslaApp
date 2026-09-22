@@ -15,10 +15,11 @@ export async function GET(request: Request) {
       const { data: { user } } = await supabase.auth.getUser()
 
       if (user) {
-        // Service role client to bypass RLS for post-login setup
-        const serviceClient = createAdminSupabase()
-
+        // Post-login family setup is best-effort: the session already exists at
+        // this point, so a failure here (for example a missing or revoked
+        // service-role key) must never block the user from getting in.
         try {
+          const serviceClient = createAdminSupabase()
           // Check if user already belongs to a family
           const { data: existingMembership } = await serviceClient
             .from('family_members')
